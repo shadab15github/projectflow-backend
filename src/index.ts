@@ -1,11 +1,14 @@
-import express from 'express';
-import cors from 'cors';
-import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
-import connectDB from './config/db';
-import authRoutes from './modules/auth/auth.routes';
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import dotenv from "dotenv";
+import dns from "dns";
+import connectDB from "./config/db";
+import authRoutes from "./modules/auth/auth.routes";
 
 dotenv.config();
+
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 const app = express();
 
@@ -13,20 +16,22 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(cors({
-  origin: process.env.CLIENT_ORIGIN,
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: process.env.CLIENT_ORIGIN,
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(cookieParser());
 
 // Health check
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' });
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok" });
 });
 
 // Routes
-app.use('/api/auth', authRoutes);
+app.use("/api/auth", authRoutes);
 
 // Global error handler (will be added in B-06)
 
