@@ -1,17 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
-import Joi from 'joi';
+import { z } from 'zod';
 import * as authService from './auth.service';
 
-const registerSchema = Joi.object({
-  name: Joi.string().trim().min(2).max(100).required(),
-  email: Joi.string().email().required(),
-  password: Joi.string().min(8).max(128).required(),
-  orgName: Joi.string().trim().min(2).max(100).required(),
+const registerSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  email: z.email(),
+  password: z.string().min(8).max(128),
+  orgName: z.string().trim().min(2).max(100),
 });
 
-const loginSchema = Joi.object({
-  email: Joi.string().email().required(),
-  password: Joi.string().required(),
+const loginSchema = z.object({
+  email: z.email(),
+  password: z.string().min(1),
 });
 
 const REFRESH_TOKEN_COOKIE = 'refreshToken';
@@ -23,15 +23,19 @@ const COOKIE_OPTIONS = {
   path: '/',
 };
 
+function formatZodError(error: z.ZodError): string {
+  return error.issues.map((i) => `${i.path.join('.') || 'body'}: ${i.message}`).join(', ');
+}
+
 export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { error, value } = registerSchema.validate(req.body, { abortEarly: false });
-    if (error) {
-      res.status(400).json({ message: error.details.map((d) => d.message).join(', ') });
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: formatZodError(parsed.error) });
       return;
     }
 
-    const result = await authService.register(value);
+    const result = await authService.register(parsed.data);
 
     res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, COOKIE_OPTIONS);
 
@@ -52,13 +56,13 @@ export async function register(req: Request, res: Response, next: NextFunction):
 
 export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { error, value } = loginSchema.validate(req.body, { abortEarly: false });
-    if (error) {
-      res.status(400).json({ message: error.details.map((d) => d.message).join(', ') });
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ message: formatZodError(parsed.error) });
       return;
     }
 
-    const result = await authService.login(value);
+    const result = await authService.login(parsed.data);
 
     res.cookie(REFRESH_TOKEN_COOKIE, result.refreshToken, COOKIE_OPTIONS);
 

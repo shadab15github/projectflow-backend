@@ -11,7 +11,7 @@
 - **Mongoose 8** — MongoDB ODM with typed schemas & interfaces
 - **jsonwebtoken** — JWT sign/verify
 - **bcrypt** — password hashing (salt rounds: 10)
-- **Joi** — request body validation
+- **zod** — request body validation
 - **dotenv** — environment config
 - **cors** + **cookie-parser** — middleware
 
@@ -72,7 +72,7 @@ CLIENT_ORIGIN=http://localhost:5173
 - **Auth is stateless JWT** — token payload: `{ userId, tenantId, role }`
 - **JWT stored in httpOnly cookie** — never localStorage
 - **Every protected route** runs `authMiddleware` → decodes JWT → injects `req.user`
-- **Validate all request bodies** with Joi on POST/PATCH handlers
+- **Validate all request bodies** with zod on POST/PATCH handlers
 - **Use async/await** — no raw `.then()` chains
 - **Every async function** must have try/catch
 - **Keep modules self-contained** — each module owns its model, service, controller, routes
