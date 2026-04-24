@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 import User, { IUserDocument } from "./auth.model";
+import * as tenantService from "../tenant/tenant.service";
 import { RegisterBody, LoginBody, TokenPayload } from "../../types";
 
 const SALT_ROUNDS = 10;
@@ -28,36 +28,40 @@ export async function register(body: RegisterBody): Promise<{
 }> {
   const { name, email, password, orgName } = body;
 
-  // Create a tenant ID — Tenant module (B-03) will expand this to a full Tenant record
-  const tenantId = new mongoose.Types.ObjectId();
-
-  const existingUser = await User.findOne({ tenantId, email });
+  const existingUser = await User.findOne({ email });
   if (existingUser) {
     throw Object.assign(new Error("User with this email already exists"), {
       status: 400,
     });
   }
 
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  const tenant = await tenantService.createTenant({ name: orgName });
 
-  const user = await User.create({
-    tenantId,
-    email,
-    passwordHash,
-    name,
-    role: "admin", // First user in a tenant is admin
-  });
+  try {
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-  const tokenPayload: TokenPayload = {
-    userId: user._id.toString(),
-    tenantId: user.tenantId.toString(),
-    role: user.role,
-  };
+    const user = await User.create({
+      tenantId: tenant._id,
+      email,
+      passwordHash,
+      name,
+      role: "admin",
+    });
 
-  const accessToken = generateAccessToken(tokenPayload);
-  const refreshToken = generateRefreshToken(tokenPayload);
+    const tokenPayload: TokenPayload = {
+      userId: user._id.toString(),
+      tenantId: user.tenantId.toString(),
+      role: user.role,
+    };
 
-  return { user, accessToken, refreshToken };
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+
+    return { user, accessToken, refreshToken };
+  } catch (error) {
+    await tenantService.deleteTenant(tenant._id.toString()).catch(() => {});
+    throw error;
+  }
 }
 
 export async function login(body: LoginBody): Promise<{
@@ -67,7 +71,6 @@ export async function login(body: LoginBody): Promise<{
 }> {
   const { email, password } = body;
 
-  // Find user across all tenants by email
   const user = await User.findOne({ email });
   if (!user) {
     throw Object.assign(new Error("Invalid email or password"), {
