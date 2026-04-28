@@ -34,6 +34,20 @@ export interface ITenant {
   createdAt: Date;
 }
 
+export type ProjectStatus = 'active' | 'archived';
+
+export interface IProject {
+  _id: Types.ObjectId;
+  tenantId: Types.ObjectId;
+  name: string;
+  description: string;
+  status: ProjectStatus;
+  members: Types.ObjectId[];
+  createdBy: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface RegisterBody {
   name: string;
   email: string;
