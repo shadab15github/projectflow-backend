@@ -48,6 +48,31 @@ export interface IProject {
   updatedAt: Date;
 }
 
+export type TaskState =
+  | 'TODO'
+  | 'IN_PROGRESS'
+  | 'IN_REVIEW'
+  | 'DONE'
+  | 'BLOCKED'
+  | 'CANCELLED';
+
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export interface ITask {
+  _id: Types.ObjectId;
+  tenantId: Types.ObjectId;
+  projectId: Types.ObjectId;
+  title: string;
+  description: string;
+  state: TaskState;
+  priority: TaskPriority;
+  assigneeId?: Types.ObjectId;
+  labels: string[];
+  createdBy: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface RegisterBody {
   name: string;
   email: string;

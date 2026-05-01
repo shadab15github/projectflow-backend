@@ -7,6 +7,7 @@ import connectDB from "./config/db";
 import authRoutes from "./modules/auth/auth.routes";
 import tenantRoutes from "./modules/tenant/tenant.routes";
 import projectRoutes from "./modules/project/project.routes";
+import taskRoutes from "./modules/task/task.routes";
 
 dotenv.config();
 
@@ -36,6 +37,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/tenant", tenantRoutes);
 app.use("/api/projects", projectRoutes);
+app.use("/api/tasks", taskRoutes);
 
 // Global error handler (will be added in B-06)
 
