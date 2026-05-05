@@ -40,6 +40,7 @@ export interface IProject {
   _id: Types.ObjectId;
   tenantId: Types.ObjectId;
   name: string;
+  slug: string;
   description: string;
   status: ProjectStatus;
   members: Types.ObjectId[];

@@ -17,12 +17,49 @@ interface UpdateProjectInput {
   members?: string[];
 }
 
+const MAX_SLUG_ATTEMPTS = 50;
+
 function toObjectId(id: string): Types.ObjectId {
   return new Types.ObjectId(id);
 }
 
 function isPrivileged(role: Role): boolean {
   return role === "admin" || role === "super_admin";
+}
+
+function baseSlug(name: string): string {
+  const slug = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return slug || "project";
+}
+
+async function generateUniqueProjectSlug(
+  tenantId: string,
+  name: string,
+): Promise<string> {
+  const root = baseSlug(name);
+  let candidate = root;
+  let attempt = 0;
+
+  while (attempt < MAX_SLUG_ATTEMPTS) {
+    const exists = await Project.exists({
+      tenantId: toObjectId(tenantId),
+      slug: candidate,
+    });
+    if (!exists) return candidate;
+    attempt += 1;
+    const suffix = Math.random().toString(36).slice(2, 7);
+    candidate = `${root}-${suffix}`;
+  }
+
+  throw Object.assign(new Error("Could not generate unique project slug"), {
+    status: 500,
+  });
 }
 
 export async function listProjects(
@@ -60,6 +97,20 @@ export async function getProjectById(
   }
 }
 
+export async function getProjectBySlug(
+  slug: string,
+  tenantId: string,
+): Promise<IProjectDocument | null> {
+  try {
+    return await Project.findOne({
+      slug: slug.toLowerCase(),
+      tenantId: toObjectId(tenantId),
+    });
+  } catch (error) {
+    throw Object.assign(new Error("Failed to load project"), { status: 500 });
+  }
+}
+
 export async function createProject(
   input: CreateProjectInput,
 ): Promise<IProjectDocument> {
@@ -67,9 +118,13 @@ export async function createProject(
     const memberIds = new Set<string>(input.members ?? []);
     memberIds.add(input.userId);
 
+    const trimmedName = input.name.trim();
+    const slug = await generateUniqueProjectSlug(input.tenantId, trimmedName);
+
     const project = await Project.create({
       tenantId: toObjectId(input.tenantId),
-      name: input.name.trim(),
+      name: trimmedName,
+      slug,
       description: input.description?.trim() ?? "",
       status: "active",
       members: Array.from(memberIds).map(toObjectId),
@@ -78,6 +133,7 @@ export async function createProject(
 
     return project;
   } catch (error) {
+    if ((error as { status?: number }).status) throw error;
     throw Object.assign(new Error("Failed to create project"), { status: 500 });
   }
 }

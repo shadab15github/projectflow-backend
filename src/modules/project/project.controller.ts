@@ -60,14 +60,12 @@ export async function getOne(
   try {
     if (!requireUser(req, res)) return;
     const { tenantId } = req.user!;
-    const id = req.params.id as string;
+    const identifier = req.params.id as string;
 
-    if (!objectIdRegex.test(id)) {
-      res.status(400).json({ message: "Invalid project id" });
-      return;
-    }
+    const project = objectIdRegex.test(identifier)
+      ? await projectService.getProjectById(identifier, tenantId)
+      : await projectService.getProjectBySlug(identifier, tenantId);
 
-    const project = await projectService.getProjectById(id, tenantId);
     if (!project) {
       res.status(404).json({ message: "Project not found" });
       return;

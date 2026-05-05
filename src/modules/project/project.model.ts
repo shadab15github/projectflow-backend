@@ -18,6 +18,12 @@ const projectSchema = new Schema<IProjectDocument>(
       required: true,
       trim: true,
     },
+    slug: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+    },
     description: {
       type: String,
       default: "",
@@ -46,6 +52,7 @@ const projectSchema = new Schema<IProjectDocument>(
 );
 
 projectSchema.index({ tenantId: 1, name: 1 });
+projectSchema.index({ tenantId: 1, slug: 1 }, { unique: true });
 
 const Project = mongoose.model<IProjectDocument>("Project", projectSchema);
 
