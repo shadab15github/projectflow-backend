@@ -53,7 +53,7 @@ async function ensureProjectAccess(
   if (role === "super_admin" || role === "admin") return;
 
   const isMember = project.members.some(
-    (memberId) => memberId.toString() === userId,
+    (m) => m.userId.toString() === userId,
   );
   const isCreator = project.createdBy.toString() === userId;
   if (!isMember && !isCreator) {

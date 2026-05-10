@@ -36,6 +36,19 @@ export interface ITenant {
 
 export type ProjectStatus = 'active' | 'archived';
 
+export type ProjectTemplate = 'board' | 'list';
+
+export type ProjectManagement = 'team-managed' | 'company-managed';
+
+export type ProjectAccess = 'open' | 'private';
+
+export type ProjectMemberRole = 'administrator' | 'member' | 'viewer';
+
+export interface IProjectMember {
+  userId: Types.ObjectId;
+  role: ProjectMemberRole;
+}
+
 export interface IProject {
   _id: Types.ObjectId;
   tenantId: Types.ObjectId;
@@ -43,7 +56,11 @@ export interface IProject {
   slug: string;
   description: string;
   status: ProjectStatus;
-  members: Types.ObjectId[];
+  template: ProjectTemplate;
+  key: string;
+  management: ProjectManagement;
+  access: ProjectAccess;
+  members: IProjectMember[];
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;

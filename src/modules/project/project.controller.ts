@@ -4,11 +4,32 @@ import { AuthRequest } from "../../types";
 import * as projectService from "./project.service";
 
 const objectIdRegex = /^[a-f\d]{24}$/i;
+const projectKeyRegex = /^[A-Z][A-Z0-9]{1,9}$/;
+
+const memberInputSchema = z.object({
+  userId: z.string().regex(objectIdRegex),
+  role: z.enum(["administrator", "member", "viewer"]).optional(),
+});
 
 const createProjectSchema = z.object({
   name: z.string().trim().min(2).max(100),
   description: z.string().trim().max(2000).optional(),
-  members: z.array(z.string().regex(objectIdRegex)).optional(),
+  template: z.enum(["board", "list"]).optional(),
+  key: z
+    .string()
+    .trim()
+    .transform((v) => v.toUpperCase())
+    .pipe(
+      z
+        .string()
+        .regex(
+          projectKeyRegex,
+          "Key must be 2–10 uppercase letters/digits and start with a letter",
+        ),
+    ),
+  management: z.enum(["team-managed", "company-managed"]).optional(),
+  access: z.enum(["open", "private"]).optional(),
+  members: z.array(memberInputSchema).optional(),
 });
 
 const updateProjectSchema = z
@@ -16,7 +37,16 @@ const updateProjectSchema = z
     name: z.string().trim().min(2).max(100).optional(),
     description: z.string().trim().max(2000).optional(),
     status: z.enum(["active", "archived"]).optional(),
-    members: z.array(z.string().regex(objectIdRegex)).optional(),
+    template: z.enum(["board", "list"]).optional(),
+    key: z
+      .string()
+      .trim()
+      .transform((v) => v.toUpperCase())
+      .pipe(z.string().regex(projectKeyRegex))
+      .optional(),
+    management: z.enum(["team-managed", "company-managed"]).optional(),
+    access: z.enum(["open", "private"]).optional(),
+    members: z.array(memberInputSchema).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field is required",
@@ -97,6 +127,10 @@ export async function create(
       userId,
       name: parsed.data.name,
       description: parsed.data.description,
+      template: parsed.data.template,
+      key: parsed.data.key,
+      management: parsed.data.management,
+      access: parsed.data.access,
       members: parsed.data.members,
     });
 
