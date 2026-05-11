@@ -7,7 +7,10 @@ import connectDB from "./config/db";
 import authRoutes from "./modules/auth/auth.routes";
 import tenantRoutes from "./modules/tenant/tenant.routes";
 import projectRoutes from "./modules/project/project.routes";
-import taskRoutes from "./modules/task/task.routes";
+import workItemRoutes from "./modules/workItem/workItem.routes";
+import sprintRoutes from "./modules/sprint/sprint.routes";
+import componentRoutes from "./modules/component/component.routes";
+import uploadRoutes from "./modules/upload/upload.routes";
 import userRoutes from "./modules/user/user.routes";
 
 dotenv.config();
@@ -38,10 +41,11 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/tenant", tenantRoutes);
 app.use("/api/projects", projectRoutes);
-app.use("/api/tasks", taskRoutes);
+app.use("/api/work-items", workItemRoutes);
+app.use("/api/sprints", sprintRoutes);
+app.use("/api/components", componentRoutes);
+app.use("/api/uploads", uploadRoutes);
 app.use("/api/users", userRoutes);
-
-// Global error handler (will be added in B-06)
 
 const PORT = process.env.PORT || 5000;
 

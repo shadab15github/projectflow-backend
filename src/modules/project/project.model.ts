@@ -83,6 +83,10 @@ const projectSchema = new Schema<IProjectDocument>(
       type: [projectMemberSchema],
       default: [],
     },
+    nextWorkItemNumber: {
+      type: Number,
+      default: 1,
+    },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",

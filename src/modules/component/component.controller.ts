@@ -1,48 +1,31 @@
 import { Response, NextFunction } from "express";
 import { z } from "zod";
-import { AuthRequest, TaskState } from "../../types";
-import * as taskService from "./task.service";
+import { AuthRequest } from "../../types";
+import * as componentService from "./component.service";
 
 const objectIdRegex = /^[a-f\d]{24}$/i;
 
-const taskStateSchema = z.enum([
-  "TODO",
-  "IN_PROGRESS",
-  "IN_REVIEW",
-  "DONE",
-  "BLOCKED",
-  "CANCELLED",
-]);
-
-const taskPrioritySchema = z.enum(["low", "medium", "high", "urgent"]);
-
-const createTaskSchema = z.object({
+const createSchema = z.object({
   projectId: z.string().regex(objectIdRegex),
-  title: z.string().trim().min(2).max(200),
-  description: z.string().trim().max(5000).optional(),
-  state: taskStateSchema.optional(),
-  priority: taskPrioritySchema.optional(),
-  assigneeId: z.string().regex(objectIdRegex).nullable().optional(),
-  labels: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+  name: z.string().trim().min(1).max(100),
+  description: z.string().trim().max(2000).optional(),
+  leadId: z.string().regex(objectIdRegex).nullable().optional(),
+  defaultAssigneeId: z.string().regex(objectIdRegex).nullable().optional(),
 });
 
-const updateTaskSchema = z
+const updateSchema = z
   .object({
-    title: z.string().trim().min(2).max(200).optional(),
-    description: z.string().trim().max(5000).optional(),
-    state: taskStateSchema.optional(),
-    priority: taskPrioritySchema.optional(),
-    assigneeId: z.string().regex(objectIdRegex).nullable().optional(),
-    labels: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+    name: z.string().trim().min(1).max(100).optional(),
+    description: z.string().trim().max(2000).optional(),
+    leadId: z.string().regex(objectIdRegex).nullable().optional(),
+    defaultAssigneeId: z.string().regex(objectIdRegex).nullable().optional(),
   })
-  .refine((data) => Object.keys(data).length > 0, {
+  .refine((d) => Object.keys(d).length > 0, {
     message: "At least one field is required",
   });
 
 const listQuerySchema = z.object({
   projectId: z.string().regex(objectIdRegex),
-  state: taskStateSchema.optional(),
-  assigneeId: z.string().regex(objectIdRegex).optional(),
 });
 
 function formatZodError(error: z.ZodError): string {
@@ -77,24 +60,18 @@ export async function list(
   try {
     if (!requireUser(req, res)) return;
     const { tenantId, userId, role } = req.user!;
-
     const parsed = listQuerySchema.safeParse(req.query);
     if (!parsed.success) {
       res.status(400).json({ message: formatZodError(parsed.error) });
       return;
     }
-
-    const tasks = await taskService.listTasks(
-      {
-        tenantId,
-        projectId: parsed.data.projectId,
-        state: parsed.data.state as TaskState | undefined,
-        assigneeId: parsed.data.assigneeId,
-      },
+    const components = await componentService.listComponents(
+      tenantId,
+      parsed.data.projectId,
       userId,
       role,
     );
-    res.json({ tasks });
+    res.json({ components });
   } catch (error) {
     if (sendError(res, error)) return;
     next(error);
@@ -108,21 +85,18 @@ export async function getOne(
 ): Promise<void> {
   try {
     if (!requireUser(req, res)) return;
-    const { tenantId, userId, role } = req.user!;
+    const { tenantId } = req.user!;
     const id = req.params.id as string;
-
     if (!objectIdRegex.test(id)) {
-      res.status(400).json({ message: "Invalid task id" });
+      res.status(400).json({ message: "Invalid component id" });
       return;
     }
-
-    const task = await taskService.getTaskById(id, tenantId, userId, role);
-    if (!task) {
-      res.status(404).json({ message: "Task not found" });
+    const component = await componentService.getComponentById(id, tenantId);
+    if (!component) {
+      res.status(404).json({ message: "Component not found" });
       return;
     }
-
-    res.json({ task });
+    res.json({ component });
   } catch (error) {
     if (sendError(res, error)) return;
     next(error);
@@ -137,29 +111,16 @@ export async function create(
   try {
     if (!requireUser(req, res)) return;
     const { tenantId, userId, role } = req.user!;
-
-    const parsed = createTaskSchema.safeParse(req.body);
+    const parsed = createSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ message: formatZodError(parsed.error) });
       return;
     }
-
-    const task = await taskService.createTask(
-      {
-        tenantId,
-        userId,
-        projectId: parsed.data.projectId,
-        title: parsed.data.title,
-        description: parsed.data.description,
-        state: parsed.data.state,
-        priority: parsed.data.priority,
-        assigneeId: parsed.data.assigneeId ?? undefined,
-        labels: parsed.data.labels,
-      },
+    const component = await componentService.createComponent(
+      { tenantId, userId, ...parsed.data },
       role,
     );
-
-    res.status(201).json({ task });
+    res.status(201).json({ component });
   } catch (error) {
     if (sendError(res, error)) return;
     next(error);
@@ -175,31 +136,27 @@ export async function update(
     if (!requireUser(req, res)) return;
     const { tenantId, userId, role } = req.user!;
     const id = req.params.id as string;
-
     if (!objectIdRegex.test(id)) {
-      res.status(400).json({ message: "Invalid task id" });
+      res.status(400).json({ message: "Invalid component id" });
       return;
     }
-
-    const parsed = updateTaskSchema.safeParse(req.body);
+    const parsed = updateSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ message: formatZodError(parsed.error) });
       return;
     }
-
-    const task = await taskService.updateTask(
+    const component = await componentService.updateComponent(
       id,
       tenantId,
       userId,
       role,
       parsed.data,
     );
-    if (!task) {
-      res.status(404).json({ message: "Task not found" });
+    if (!component) {
+      res.status(404).json({ message: "Component not found" });
       return;
     }
-
-    res.json({ task });
+    res.json({ component });
   } catch (error) {
     if (sendError(res, error)) return;
     next(error);
@@ -215,18 +172,20 @@ export async function remove(
     if (!requireUser(req, res)) return;
     const { tenantId, userId, role } = req.user!;
     const id = req.params.id as string;
-
     if (!objectIdRegex.test(id)) {
-      res.status(400).json({ message: "Invalid task id" });
+      res.status(400).json({ message: "Invalid component id" });
       return;
     }
-
-    const deleted = await taskService.deleteTask(id, tenantId, userId, role);
-    if (!deleted) {
-      res.status(404).json({ message: "Task not found" });
+    const ok = await componentService.deleteComponent(
+      id,
+      tenantId,
+      userId,
+      role,
+    );
+    if (!ok) {
+      res.status(404).json({ message: "Component not found" });
       return;
     }
-
     res.status(204).send();
   } catch (error) {
     if (sendError(res, error)) return;

@@ -61,12 +61,15 @@ export interface IProject {
   management: ProjectManagement;
   access: ProjectAccess;
   members: IProjectMember[];
+  nextWorkItemNumber: number;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export type TaskState =
+export type WorkItemType = 'segment' | 'task' | 'subtask';
+
+export type WorkItemState =
   | 'TODO'
   | 'IN_PROGRESS'
   | 'IN_REVIEW'
@@ -74,18 +77,68 @@ export type TaskState =
   | 'BLOCKED'
   | 'CANCELLED';
 
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type WorkItemPriority = 'low' | 'medium' | 'high' | 'urgent';
 
-export interface ITask {
+export interface IWorkItemAttachment {
+  name: string;
+  url: string;
+  publicId?: string;
+  mimeType?: string;
+  size?: number;
+  uploadedAt: Date;
+}
+
+export interface IWorkItem {
   _id: Types.ObjectId;
   tenantId: Types.ObjectId;
   projectId: Types.ObjectId;
+  type: WorkItemType;
+  parentId: Types.ObjectId | null;
+  number: number;
+  key: string;
   title: string;
   description: string;
-  state: TaskState;
-  priority: TaskPriority;
-  assigneeId?: Types.ObjectId;
+  state: WorkItemState;
+  priority: WorkItemPriority;
+  assigneeId: Types.ObjectId | null;
+  reporterId: Types.ObjectId;
   labels: string[];
+  componentIds: Types.ObjectId[];
+  sprintId: Types.ObjectId | null;
+  storyPoints: number | null;
+  dueDate: Date | null;
+  attachments: IWorkItemAttachment[];
+  createdBy: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type SprintState = 'planned' | 'active' | 'closed';
+
+export interface ISprint {
+  _id: Types.ObjectId;
+  tenantId: Types.ObjectId;
+  projectId: Types.ObjectId;
+  name: string;
+  goal: string;
+  state: SprintState;
+  startDate: Date | null;
+  endDate: Date | null;
+  startedAt: Date | null;
+  closedAt: Date | null;
+  createdBy: Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IComponent {
+  _id: Types.ObjectId;
+  tenantId: Types.ObjectId;
+  projectId: Types.ObjectId;
+  name: string;
+  description: string;
+  leadId: Types.ObjectId | null;
+  defaultAssigneeId: Types.ObjectId | null;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
