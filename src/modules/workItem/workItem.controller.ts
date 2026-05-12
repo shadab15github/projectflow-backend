@@ -62,11 +62,23 @@ const updateSchema = z
     message: "At least one field is required",
   });
 
+const sortBySchema = z.enum([
+  "updatedAt",
+  "createdAt",
+  "title",
+  "state",
+  "priority",
+  "key",
+]);
+
 const listQuerySchema = z.object({
   projectId: z.string().regex(objectIdRegex),
   type: typeSchema.optional(),
   state: stateSchema.optional(),
-  assigneeId: z.string().regex(objectIdRegex).optional(),
+  assigneeId: z
+    .union([z.string().regex(objectIdRegex), z.literal("none")])
+    .optional(),
+  assigneeIds: z.string().trim().max(2000).optional(),
   sprintId: z.union([z.string().regex(objectIdRegex), z.literal("none")]).optional(),
   parentId: z.union([z.string().regex(objectIdRegex), z.literal("none")]).optional(),
   search: z.string().trim().max(200).optional(),
@@ -76,6 +88,8 @@ const listQuerySchema = z.object({
     .transform((v) => v === "true"),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(200).optional(),
+  sortBy: sortBySchema.optional(),
+  sortDir: z.enum(["asc", "desc"]).optional(),
 });
 
 function formatZodError(error: z.ZodError): string {
@@ -117,6 +131,24 @@ export async function list(
       return;
     }
 
+    let assigneeIds: (string | "none")[] | undefined;
+    if (parsed.data.assigneeIds) {
+      const tokens = parsed.data.assigneeIds
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const valid: (string | "none")[] = [];
+      for (const t of tokens) {
+        if (t === "none" || objectIdRegex.test(t)) {
+          valid.push(t as string | "none");
+        } else {
+          res.status(400).json({ message: `Invalid assigneeId: ${t}` });
+          return;
+        }
+      }
+      if (valid.length > 0) assigneeIds = valid;
+    }
+
     const result = await workItemService.listWorkItems(
       {
         tenantId,
@@ -124,12 +156,15 @@ export async function list(
         type: parsed.data.type as WorkItemType | undefined,
         state: parsed.data.state as WorkItemState | undefined,
         assigneeId: parsed.data.assigneeId,
+        assigneeIds,
         sprintId: parsed.data.sprintId,
         parentId: parsed.data.parentId,
         search: parsed.data.search,
         hideDone: parsed.data.hideDone,
         page: parsed.data.page,
         limit: parsed.data.limit,
+        sortBy: parsed.data.sortBy,
+        sortDir: parsed.data.sortDir,
       },
       userId,
       role,

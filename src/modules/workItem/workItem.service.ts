@@ -12,18 +12,29 @@ import {
   WorkItemType,
 } from "../../types";
 
+export type WorkItemSortBy =
+  | "updatedAt"
+  | "createdAt"
+  | "title"
+  | "state"
+  | "priority"
+  | "key";
+
 export interface ListWorkItemsFilter {
   tenantId: string;
   projectId: string;
   type?: WorkItemType;
   state?: WorkItemState;
-  assigneeId?: string;
+  assigneeId?: string | "none";
+  assigneeIds?: (string | "none")[];
   sprintId?: string | "none";
   parentId?: string | "none";
   search?: string;
   hideDone?: boolean;
   page?: number;
   limit?: number;
+  sortBy?: WorkItemSortBy;
+  sortDir?: "asc" | "desc";
 }
 
 export interface ListWorkItemsResult {
@@ -227,7 +238,27 @@ export async function listWorkItems(
 
     if (filter.type) query.type = filter.type;
     if (filter.state) query.state = filter.state;
-    if (filter.assigneeId) query.assigneeId = toObjectId(filter.assigneeId);
+
+    if (filter.assigneeIds && filter.assigneeIds.length > 0) {
+      const ids = filter.assigneeIds.filter((v) => v !== "none") as string[];
+      const includeUnassigned = filter.assigneeIds.includes("none");
+      const clauses: Record<string, unknown>[] = [];
+      if (ids.length > 0) {
+        clauses.push({ assigneeId: { $in: ids.map(toObjectId) } });
+      }
+      if (includeUnassigned) {
+        clauses.push({ assigneeId: null });
+      }
+      if (clauses.length === 1) {
+        Object.assign(query, clauses[0]);
+      } else if (clauses.length > 1) {
+        query.$or = clauses;
+      }
+    } else if (filter.assigneeId === "none") {
+      query.assigneeId = null;
+    } else if (filter.assigneeId) {
+      query.assigneeId = toObjectId(filter.assigneeId);
+    }
 
     if (filter.sprintId === "none") query.sprintId = null;
     else if (filter.sprintId) query.sprintId = toObjectId(filter.sprintId);
@@ -242,15 +273,30 @@ export async function listWorkItems(
     if (filter.search && filter.search.length > 0) {
       const escaped = filter.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const regex = new RegExp(escaped, "i");
-      query.$or = [{ title: regex }, { key: regex }];
+      const searchOr = [{ title: regex }, { key: regex }];
+      if (query.$or) {
+        // Compose with an existing $or (e.g. assignee multi-select that
+        // includes "Unassigned") by AND-ing the two disjunctions.
+        const prevOr = query.$or as Record<string, unknown>[];
+        delete query.$or;
+        query.$and = [{ $or: prevOr }, { $or: searchOr }];
+      } else {
+        query.$or = searchOr;
+      }
     }
 
     const page = filter.page && filter.page > 0 ? filter.page : 1;
     const limit = filter.limit && filter.limit > 0 ? filter.limit : 25;
     const skip = (page - 1) * limit;
 
+    const sortField: WorkItemSortBy = filter.sortBy ?? "updatedAt";
+    const sortDir: 1 | -1 = filter.sortDir === "asc" ? 1 : -1;
+
     const [items, total] = await Promise.all([
-      WorkItem.find(query).sort({ updatedAt: -1 }).skip(skip).limit(limit),
+      WorkItem.find(query)
+        .sort({ [sortField]: sortDir })
+        .skip(skip)
+        .limit(limit),
       WorkItem.countDocuments(query),
     ]);
 
