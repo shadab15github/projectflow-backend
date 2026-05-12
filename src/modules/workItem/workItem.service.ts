@@ -20,6 +20,17 @@ export interface ListWorkItemsFilter {
   assigneeId?: string;
   sprintId?: string | "none";
   parentId?: string | "none";
+  search?: string;
+  hideDone?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface ListWorkItemsResult {
+  items: IWorkItemDocument[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export interface AttachmentInput {
@@ -205,7 +216,7 @@ export async function listWorkItems(
   filter: ListWorkItemsFilter,
   userId: string,
   role: Role,
-): Promise<IWorkItemDocument[]> {
+): Promise<ListWorkItemsResult> {
   try {
     await ensureProjectAccess(filter.projectId, filter.tenantId, userId, role);
 
@@ -224,7 +235,26 @@ export async function listWorkItems(
     if (filter.parentId === "none") query.parentId = null;
     else if (filter.parentId) query.parentId = toObjectId(filter.parentId);
 
-    return await WorkItem.find(query).sort({ updatedAt: -1 });
+    if (filter.hideDone) {
+      query.state = { $ne: "DONE" };
+    }
+
+    if (filter.search && filter.search.length > 0) {
+      const escaped = filter.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escaped, "i");
+      query.$or = [{ title: regex }, { key: regex }];
+    }
+
+    const page = filter.page && filter.page > 0 ? filter.page : 1;
+    const limit = filter.limit && filter.limit > 0 ? filter.limit : 25;
+    const skip = (page - 1) * limit;
+
+    const [items, total] = await Promise.all([
+      WorkItem.find(query).sort({ updatedAt: -1 }).skip(skip).limit(limit),
+      WorkItem.countDocuments(query),
+    ]);
+
+    return { items, total, page, limit };
   } catch (error) {
     if ((error as { status?: number }).status) throw error;
     throw httpError("Failed to list work items", 500);

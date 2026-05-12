@@ -69,6 +69,13 @@ const listQuerySchema = z.object({
   assigneeId: z.string().regex(objectIdRegex).optional(),
   sprintId: z.union([z.string().regex(objectIdRegex), z.literal("none")]).optional(),
   parentId: z.union([z.string().regex(objectIdRegex), z.literal("none")]).optional(),
+  search: z.string().trim().max(200).optional(),
+  hideDone: z
+    .union([z.literal("true"), z.literal("false")])
+    .optional()
+    .transform((v) => v === "true"),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 
 function formatZodError(error: z.ZodError): string {
@@ -110,7 +117,7 @@ export async function list(
       return;
     }
 
-    const items = await workItemService.listWorkItems(
+    const result = await workItemService.listWorkItems(
       {
         tenantId,
         projectId: parsed.data.projectId,
@@ -119,11 +126,15 @@ export async function list(
         assigneeId: parsed.data.assigneeId,
         sprintId: parsed.data.sprintId,
         parentId: parsed.data.parentId,
+        search: parsed.data.search,
+        hideDone: parsed.data.hideDone,
+        page: parsed.data.page,
+        limit: parsed.data.limit,
       },
       userId,
       role,
     );
-    res.json({ items });
+    res.json(result);
   } catch (error) {
     if (sendError(res, error)) return;
     next(error);
