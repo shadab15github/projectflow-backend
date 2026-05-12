@@ -1,0 +1,506 @@
+{
+  "info": {
+    "name": "ProjectFlow Backend",
+    "description": "Postman collection for ProjectFlow SaaS backend API.\n\n**Auth model**\n- `POST /auth/register` and `POST /auth/login` return `{ user, token }`. The `token` is a short-lived JWT access token sent on every protected request as `Authorization: Bearer <token>`.\n- The login/register responses also set an httpOnly `refreshToken` cookie. Postman's cookie jar picks it up automatically; the only endpoint that consumes it is `POST /auth/refresh`.\n- The Login request has a test script that captures the access token into the collection variable `{{token}}`, plus `{{tenantId}}`, `{{userId}}` and `{{role}}` from the user object.\n\n**Variables to set before running**\n- `baseUrl` — defaults to `http://localhost:5000/api`\n- `projectId`, `workItemId`, `sprintId`, `componentId`, `assigneeId` — fill in after creating resources (or let the create-request scripts auto-capture them — they do).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api", "type": "string" },
+    { "key": "token", "value": "", "type": "string" },
+    { "key": "tenantId", "value": "", "type": "string" },
+    { "key": "userId", "value": "", "type": "string" },
+    { "key": "role", "value": "", "type": "string" },
+    { "key": "projectId", "value": "", "type": "string" },
+    { "key": "workItemId", "value": "", "type": "string" },
+    { "key": "sprintId", "value": "", "type": "string" },
+    { "key": "componentId", "value": "", "type": "string" },
+    { "key": "assigneeId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (sign up + create tenant)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.token) pm.collectionVariables.set('token', data.token);",
+                  "  if (data.user) {",
+                  "    pm.collectionVariables.set('userId', data.user._id);",
+                  "    pm.collectionVariables.set('tenantId', data.user.tenantId);",
+                  "    pm.collectionVariables.set('role', data.user.role);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane@acme.test\",\n  \"password\": \"Sup3rSecret!\",\n  \"orgName\": \"Acme Inc\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.token) pm.collectionVariables.set('token', data.token);",
+                  "  if (data.user) {",
+                  "    pm.collectionVariables.set('userId', data.user._id);",
+                  "    pm.collectionVariables.set('tenantId', data.user.tenantId);",
+                  "    pm.collectionVariables.set('role', data.user.role);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jane@acme.test\",\n  \"password\": \"Sup3rSecret!\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Refresh access token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.token) pm.collectionVariables.set('token', data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "description": "Uses the httpOnly `refreshToken` cookie set by /auth/login. Make sure Postman cookie jar is enabled for the host.",
+            "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth", "refresh"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tenant",
+      "item": [
+        {
+          "name": "Get current tenant",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/tenant/me", "host": ["{{baseUrl}}"], "path": ["tenant", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List users (tenant-scoped)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "List projects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/projects", "host": ["{{baseUrl}}"], "path": ["projects"] }
+          }
+        },
+        {
+          "name": "Get project by id or slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/projects/{{projectId}}", "host": ["{{baseUrl}}"], "path": ["projects", "{{projectId}}"] }
+          }
+        },
+        {
+          "name": "Create project (manager+)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.project && data.project._id) pm.collectionVariables.set('projectId', data.project._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Apollo Platform\",\n  \"description\": \"Internal platform initiative\",\n  \"template\": \"board\",\n  \"key\": \"APL\",\n  \"management\": \"team-managed\",\n  \"access\": \"open\",\n  \"members\": [\n    { \"userId\": \"{{userId}}\", \"role\": \"administrator\" }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/projects", "host": ["{{baseUrl}}"], "path": ["projects"] }
+          }
+        },
+        {
+          "name": "Update project (manager+)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Apollo Platform v2\",\n  \"description\": \"Updated description\",\n  \"status\": \"active\",\n  \"access\": \"private\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/projects/{{projectId}}", "host": ["{{baseUrl}}"], "path": ["projects", "{{projectId}}"] }
+          }
+        },
+        {
+          "name": "Delete project (admin+)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/projects/{{projectId}}", "host": ["{{baseUrl}}"], "path": ["projects", "{{projectId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Work Items",
+      "item": [
+        {
+          "name": "List my work items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/work-items/mine", "host": ["{{baseUrl}}"], "path": ["work-items", "mine"] }
+          }
+        },
+        {
+          "name": "List work items (by project, with filters)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/work-items?projectId={{projectId}}&type=task&state=TODO",
+              "host": ["{{baseUrl}}"],
+              "path": ["work-items"],
+              "query": [
+                { "key": "projectId", "value": "{{projectId}}" },
+                { "key": "type", "value": "task", "description": "segment | task | subtask" },
+                { "key": "state", "value": "TODO", "description": "TODO | IN_PROGRESS | IN_REVIEW | DONE | BLOCKED | CANCELLED" },
+                { "key": "assigneeId", "value": "", "disabled": true },
+                { "key": "sprintId", "value": "", "description": "ObjectId or literal 'none'", "disabled": true },
+                { "key": "parentId", "value": "", "description": "ObjectId or literal 'none'", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get work item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/work-items/{{workItemId}}", "host": ["{{baseUrl}}"], "path": ["work-items", "{{workItemId}}"] }
+          }
+        },
+        {
+          "name": "Create work item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.item && data.item._id) pm.collectionVariables.set('workItemId', data.item._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"type\": \"task\",\n  \"title\": \"Wire up the dashboard\",\n  \"description\": \"Connect dashboard cards to /work-items/mine\",\n  \"state\": \"TODO\",\n  \"priority\": \"medium\",\n  \"assigneeId\": \"{{userId}}\",\n  \"labels\": [\"frontend\", \"phase-4\"],\n  \"storyPoints\": 3\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/work-items", "host": ["{{baseUrl}}"], "path": ["work-items"] }
+          }
+        },
+        {
+          "name": "Update work item",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"state\": \"IN_PROGRESS\",\n  \"priority\": \"high\",\n  \"labels\": [\"frontend\", \"in-flight\"]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/work-items/{{workItemId}}", "host": ["{{baseUrl}}"], "path": ["work-items", "{{workItemId}}"] }
+          }
+        },
+        {
+          "name": "Delete work item (manager+)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/work-items/{{workItemId}}", "host": ["{{baseUrl}}"], "path": ["work-items", "{{workItemId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprints",
+      "item": [
+        {
+          "name": "List sprints",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sprints?projectId={{projectId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["sprints"],
+              "query": [
+                { "key": "projectId", "value": "{{projectId}}" },
+                { "key": "state", "value": "active", "description": "planned | active | closed", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get sprint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/sprints/{{sprintId}}", "host": ["{{baseUrl}}"], "path": ["sprints", "{{sprintId}}"] }
+          }
+        },
+        {
+          "name": "Get sprint report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/sprints/{{sprintId}}/report", "host": ["{{baseUrl}}"], "path": ["sprints", "{{sprintId}}", "report"] }
+          }
+        },
+        {
+          "name": "Create sprint",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.sprint && data.sprint._id) pm.collectionVariables.set('sprintId', data.sprint._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"name\": \"Sprint 1\",\n  \"goal\": \"Ship dashboard polish\",\n  \"startDate\": \"2026-05-12T00:00:00.000Z\",\n  \"endDate\": \"2026-05-26T00:00:00.000Z\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/sprints", "host": ["{{baseUrl}}"], "path": ["sprints"] }
+          }
+        },
+        {
+          "name": "Update sprint",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sprint 1 (revised)\",\n  \"goal\": \"Ship dashboard polish + my-tasks\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/sprints/{{sprintId}}", "host": ["{{baseUrl}}"], "path": ["sprints", "{{sprintId}}"] }
+          }
+        },
+        {
+          "name": "Start sprint",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/sprints/{{sprintId}}/start", "host": ["{{baseUrl}}"], "path": ["sprints", "{{sprintId}}", "start"] }
+          }
+        },
+        {
+          "name": "Close sprint",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rolloverSprintId\": null\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/sprints/{{sprintId}}/close", "host": ["{{baseUrl}}"], "path": ["sprints", "{{sprintId}}", "close"] }
+          }
+        },
+        {
+          "name": "Delete sprint",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/sprints/{{sprintId}}", "host": ["{{baseUrl}}"], "path": ["sprints", "{{sprintId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Components",
+      "item": [
+        {
+          "name": "List components",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/components?projectId={{projectId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["components"],
+              "query": [{ "key": "projectId", "value": "{{projectId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Get component",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/components/{{componentId}}", "host": ["{{baseUrl}}"], "path": ["components", "{{componentId}}"] }
+          }
+        },
+        {
+          "name": "Create component",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.component && data.component._id) pm.collectionVariables.set('componentId', data.component._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\",\n  \"name\": \"Frontend\",\n  \"description\": \"Vue UI surface\",\n  \"leadId\": \"{{userId}}\",\n  \"defaultAssigneeId\": \"{{userId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/components", "host": ["{{baseUrl}}"], "path": ["components"] }
+          }
+        },
+        {
+          "name": "Update component",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Frontend (Vue)\",\n  \"description\": \"Updated component description\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/components/{{componentId}}", "host": ["{{baseUrl}}"], "path": ["components", "{{componentId}}"] }
+          }
+        },
+        {
+          "name": "Delete component",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/components/{{componentId}}", "host": ["{{baseUrl}}"], "path": ["components", "{{componentId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Uploads",
+      "item": [
+        {
+          "name": "Sign upload (Cloudinary)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"projectId\": \"{{projectId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/uploads/sign", "host": ["{{baseUrl}}"], "path": ["uploads", "sign"] }
+          }
+        }
+      ]
+    }
+  ]
+}
