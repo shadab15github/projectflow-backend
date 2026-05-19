@@ -108,6 +108,7 @@ export interface IWorkItem {
   storyPoints: number | null;
   dueDate: Date | null;
   attachments: IWorkItemAttachment[];
+  boardPosition: number;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;

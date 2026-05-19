@@ -57,6 +57,7 @@ const updateSchema = z
     dueDate: z.string().datetime().nullable().optional(),
     parentId: z.string().regex(objectIdRegex).nullable().optional(),
     attachments: z.array(attachmentSchema).max(20).optional(),
+    boardPosition: z.number().finite().optional(),
   })
   .refine((d) => Object.keys(d).length > 0, {
     message: "At least one field is required",

@@ -86,6 +86,7 @@ export interface UpdateWorkItemInput {
   dueDate?: string | null;
   parentId?: string | null;
   attachments?: AttachmentInput[];
+  boardPosition?: number;
 }
 
 function toObjectId(id: string): Types.ObjectId {
@@ -458,6 +459,8 @@ export async function updateWorkItem(
       update.dueDate = input.dueDate ? new Date(input.dueDate) : null;
     if (input.attachments !== undefined)
       update.attachments = normalizeAttachments(input.attachments);
+    if (input.boardPosition !== undefined)
+      update.boardPosition = input.boardPosition;
 
     if (input.componentIds !== undefined) {
       update.componentIds = await validateComponents(

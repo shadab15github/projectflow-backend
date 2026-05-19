@@ -137,6 +137,11 @@ const workItemSchema = new Schema<IWorkItemDocument>(
       type: [attachmentSchema],
       default: [],
     },
+    boardPosition: {
+      type: Number,
+      default: () => Date.now(),
+      index: true,
+    },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
